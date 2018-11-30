@@ -6,7 +6,7 @@ from nets import inception
 class Model(object):
     def __init__(self, is_training=True):
         self.batch_size = 32
-        self.vocabulary_size = 14643     # 14640 word + '<S>' '</S>' '<EOS>
+        self.vocabulary_size = 14643     # 14640 word + '<S>' '</S>' '<EOS>'
 
         self.lstm_units = 512
         self.embedding_size = 512
@@ -24,13 +24,13 @@ class Model(object):
         self.sentences = tf.placeholder(dtype=tf.int32, shape=[self.batch_size, self.max_caption_length])
         self.masks = tf.placeholder(dtype=tf.float32, shape=[self.batch_size, self.max_caption_length])
 
-    def build_model(self):
         self.build_cnn()
         self.build_rnn()
         self.build_metrics()
         if self.is_training:
             self.build_optimizer()
             self.build_summary()
+        print('---model built.---')
 
     def build_cnn(self):
         _, _, net = inception.inception_v3(self.images, trainable=True, is_training=True, add_summaries=False)  # [batch size, 2048]
@@ -80,7 +80,7 @@ class Model(object):
                 WordLSTM_current_output, WordLSTM_current_state = WordLSTM(inputs, WordLSTM_last_state)
 
             with tf.variable_scope('decode'):
-                expanded_output = nn.dropout(WordLSTM_current_output, self.dropout_rate, self.is_train, name='drop')
+                expanded_output = nn.dropout(WordLSTM_current_output, self.dropout_rate, self.is_training, name='drop')
                 logits = nn.dense(expanded_output, units=self.vocabulary_size, activation=None, name='fc')
                 prediction = tf.argmax(logits, 1)
                 predictions.append(prediction)
@@ -88,7 +88,7 @@ class Model(object):
 
             WordLSTM_last_state = WordLSTM_current_state
             # use teacher policy
-            if self.is_train:
+            if self.is_training:
                 WordLSTM_last_word = self.sentences[:, id]
             else:
                 WordLSTM_last_word = prediction
