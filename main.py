@@ -8,15 +8,24 @@ import datasets
 import metrics
 from model import Model
 
-pretrain_inception_v3_ckpt_path = '/home/wanglei/workshop/b_pre_train_model/inception/inception_v3.ckpt'
-val_split_path = 'data/val_split.json'      # val size = 5000
-test_split_path = 'data/test_split.json'      # val size = 5000
-tfrecord_list_path = 'data/tfrecord_list.json'
+imgs_path = '/home/wanglei/workshop/MSCoCo/train2017'
+captions_path = 'data/captions.json'
+val_split_path = 'data/image_id_val.json'              # val size = 5000
+test_split_path = 'data/image_id_test.json'            # test size = 5000
 
-summary_path = 'data/summary'
-model_path_save = 'data/model/my-test'
-num_epochs = 1
-train_num = 82783
+train_tfrecord_name_path = 'data/tfrecord_name_train.json'
+val_tfrecord_name_path = 'data/tfrecord_name_val.json'
+test_tfrecord_name_path = 'data/tfrecord_name_test.json'
+vocabulary_path = 'data/vocabulary.json'
+
+pretrain_inception_v3_ckpt_path = '/home/wanglei/workshop/b_pre_train_model/inception/inception_v3.ckpt'
+
+summary_path = 'data/summary'                       # data/summary to save events tf.summary
+model_path_save = 'data/model/my-test'              # data/model to save my-test-xxx.ckpt
+num_epochs = 101                                    # tfrecord how many epochs
+train_num = 82783                                   # tfrecord size = 82783
+val_num = 5000
+test_num = 5000
 
 def train():
     md = Model(is_training=True)            # Train model
@@ -24,9 +33,9 @@ def train():
     md_test = Model(is_training=False)      # Test model
 
     print('---Read Data...')
-    image_batch, sentence_batch, mask_batch, image_id_batch = datasets.get_train_batch(tfrecord_list_path, md.batch_size)
-    image_list_v, sentence_list_v, mask_list_v, image_id_list_v = datasets.get_inputs(val_split_path)
-    image_list_t, sentence_list_t, mask_list_t, image_id_list_t = datasets.get_inputs(test_split_path)
+    image_batch, sentence_batch, mask_batch, image_id_batch = datasets.get_train_batch(train_tfrecord_name_path, md.batch_size)
+    image_list_v, sentence_list_v, mask_list_v, image_id_list_v = datasets.get_inputs(imgs_path, captions_path, val_split_path, vocabulary_path)
+    image_list_t, sentence_list_t, mask_list_t, image_id_list_t = datasets.get_inputs(imgs_path, captions_path, test_split_path, vocabulary_path)
 
     print('---Training Model...')
     init_fn = slim.assign_from_checkpoint_fn(pretrain_inception_v3_ckpt_path, slim.get_model_variables('InceptionV3'))  # 'InceptionV3'
@@ -37,7 +46,7 @@ def train():
         sess.run(tf.local_variables_initializer())
         init_fn(sess)
 
-        coord = tf.train.Coordinator()
+        coord = tf.train.Coordinator()                          # queue manage
         threads = tf.train.start_queue_runners(coord=coord)
 
         iter = 1
@@ -47,11 +56,13 @@ def train():
         image_id_list = []
         for epoch in range(num_epochs):
             for _ in range(train_num / md.batch_size):
+                # for efficiency, it is no need tensor to numpy, the numpy to tensor, so no need feed_dict, but for model's simplicity, I make the unneccessary move.
                 images, sentences, masks, image_ids = sess.run([image_batch, sentence_batch, mask_batch, image_id_batch])
 
                 feed_dict = {md.images: images,
                              md.sentences: sentences,
                              md.masks: masks}
+
                 _, _summary, _global_step, _loss, _acc, _predictions, = sess.run(
                     [md.step_op, md.summary, md.global_step, md.loss, md.accuracy, md.predictions], feed_dict=feed_dict)
                 train_writer.add_summary(_summary, _global_step)
@@ -73,7 +84,7 @@ def train():
                     loss_val = round(np.mean(loss_list), 4)
                     acc_val = round(np.mean(acc_list), 4)
                     print('------epoch = %s, iter = %s, loss = %s, acc = %s, bleu = %s, meteor = %s, rouge = %s, cider = %s' %
-                                (epoch, iter, tc.colored(loss_val, 'red'), tc.colored(acc_val, 'blue'), tc.colored(bleu, 'red'),
+                                (epoch, iter, tc.colored(loss_val, 'red'), tc.colored(acc_val, 'red'), tc.colored(bleu, 'red'),
                                  tc.colored(meteor, 'red'), tc.colored(rouge, 'red'), tc.colored(cider, 'red')))
 
                     # test model
@@ -97,9 +108,9 @@ def train():
 
 # eval model for val and test
 def eval(sess, md, image_list, sentence_list, mask_list, image_id_list):
-    loss_list = []
-    acc_list = []
-    predictions_list = []
+    _loss_list = []
+    _acc_list = []
+    _predictions_list = []
     _image_id_list = []
 
     batch_size = md.batch_size
@@ -113,12 +124,57 @@ def eval(sess, md, image_list, sentence_list, mask_list, image_id_list):
                      md.sentences: sentences,
                      md.masks: masks}
         _loss, _acc, _predictions, = sess.run([md.loss, md.accuracy, md.predictions], feed_dict=feed_dict)
-        loss_list.append(_loss)
-        acc_list.append(_acc)
-        predictions_list.append(_predictions)
+        _loss_list.append(_loss)
+        _acc_list.append(_acc)
+        _predictions_list.append(_predictions)
         _image_id_list.append(image_ids)
-    return loss_list, acc_list, predictions_list, _image_id_list
+
+    return _loss_list, _acc_list, _predictions_list, _image_id_list
 
 
-train()
+def test(tfrecord_list_path, data_nums, model_path):
+    md = Model(is_training=False)  # Test model
+
+    print('---Read Data...')
+    image_batch, sentence_batch, mask_batch, image_id_batch = datasets.get_train_batch(tfrecord_list_path, md.batch_size)
+
+    saver = tf.train.Saver()
+    with tf.Session() as sess:
+        sess.run(tf.global_variables_initializer())
+        sess.run(tf.local_variables_initializer())
+        saver.restore(sess, model_path)
+
+        coord = tf.train.Coordinator()  # queue manage
+        threads = tf.train.start_queue_runners(coord=coord)
+
+        loss_list = []
+        acc_list = []
+        predictions_list = []
+        image_id_list = []
+        for _ in range(data_nums / md.batch_size):
+            images, sentences, masks, image_ids = sess.run([image_batch, sentence_batch, mask_batch, image_id_batch])
+
+            feed_dict = {md.images: images,
+                         md.sentences: sentences,
+                         md.masks: masks}
+
+            _loss, _acc, _predictions, = sess.run([md.loss, md.accuracy, md.predictions], feed_dict=feed_dict)
+            loss_list.append(_loss)
+            acc_list.append(_acc)
+            predictions_list.append(_predictions)
+            image_id_list.append(image_ids)
+
+        bleu, meteor, rouge, cider = metrics.coco_caption_metrics(predictions_list, image_id_list, batch_size=md.batch_size, is_training=md.is_training)
+        print('loss = %s, acc = %s, belu = %s, meteor = %s, rouge = %s, cider = %s' %
+              (np.mean(loss_list), np.mean(acc_list), bleu, meteor, rouge, cider))
+
+        coord.request_stop()
+        coord.join(threads)
+
+# train()
+
+model_path = 'data/model/my-test-10000'
+test(train_tfrecord_name_path, train_num, model_path)
+# test(val_tfrecord_name_path, val_num, model_path)
+# test(test_tfrecord_name_path, test_num, model_path)
 

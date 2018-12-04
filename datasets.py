@@ -29,7 +29,7 @@ def get_train_batch(tfrecord_list_path, batch_size, image_size=224, max_caption_
     mask = features['mask']
     image_id = features['image_id']
 
-    # 3. get tf.train.batch
+    # 3. get tf.tfrecord.batch
     min_after_dequeue = 10000
     image_batch, sentece_batch, mask_batch, image_id_batch = tf.train.batch(
         [image, sentence, mask, image_id],
@@ -40,11 +40,7 @@ def get_train_batch(tfrecord_list_path, batch_size, image_size=224, max_caption_
     return image_batch, sentece_batch, mask_batch, image_id_batch
 
 # get data from memory
-def get_inputs(split_list_path, image_size=224, max_caption_length=25):
-    imgs_path = '/home/wanglei/workshop/MSCoCo/train2017'
-    captions_path = 'data/captions.json'
-    vocabulary_path = 'data/vocabulary.json'
-
+def get_inputs(imgs_path, captions_path, split_list_path, vocabulary_path, image_size=224, max_caption_length=25):
     with open(vocabulary_path, 'r') as file:
         vocabulary = json.load(file)
     word2id = {}
@@ -83,9 +79,10 @@ def get_inputs(split_list_path, image_size=224, max_caption_length=25):
 
     return image_list, sentence_list, mask_list, image_id_list
 
-# get data/train/xxx.tfrecord
+# get data/tfrecord/xxx.tfrecord
 def get_train_tfrecord(imgs_path, captions_path, split_list_path, vocabulary_path, image_size=224, max_caption_length=25):
-    vocabulary = get_vocabulary(vocabulary_path)
+    with open(vocabulary_path, 'r') as file:
+        vocabulary = json.load(file)
     word2id = {}
     for i in range(vocabulary.__len__()):
         word2id[vocabulary[i]] = i
@@ -94,12 +91,12 @@ def get_train_tfrecord(imgs_path, captions_path, split_list_path, vocabulary_pat
     with open(split_list_path, 'r') as file:
         split_id_list = json.load(file)
 
-    D = 40
+    D = 2
     for i in range(D):
         subsets_num = split_id_list.__len__() / D + 1
         sub_split_id_list = split_id_list[i * subsets_num: (i + 1) * subsets_num]
 
-        train_tfrecord_name = 'data/train/train-%02d.tfrecord' % i
+        train_tfrecord_name = 'data/tfrecord/test-%02d.tfrecord' % i
         writer = tf.python_io.TFRecordWriter(train_tfrecord_name)
 
         for image_id in sub_split_id_list:
@@ -142,12 +139,46 @@ def get_train_tfrecord(imgs_path, captions_path, split_list_path, vocabulary_pat
         print('%s write to tfrecord success!' % train_tfrecord_name)
         # break
 
+def get_tfrecord_split():
+    D = 40
+    train_tfrecord_name_list = []
+    for i in range(D):
+        tfrecord_name = 'data/tfrecord/train-%02d.tfrecord' % i
+        train_tfrecord_name_list.append(tfrecord_name)
+
+    D = 2
+    val_tfrecord_name_list = []
+    for i in range(D):
+        tfrecord_name = 'data/tfrecord/val-%02d.tfrecord' % i
+        val_tfrecord_name_list.append(tfrecord_name)
+
+    D = 2
+    test_tfrecord_name_list = []
+    for i in range(D):
+        tfrecord_name = 'data/tfrecord/test-%02d.tfrecord' % i
+        test_tfrecord_name_list.append(tfrecord_name)
+
+    with open('data/tfrecord_name_train.json', 'w') as file:
+        json.dump(train_tfrecord_name_list, file)
+    with open('data/tfrecord_name_val.json', 'w') as file:
+        json.dump(val_tfrecord_name_list, file)
+    with open('data/tfrecord_name_test.json', 'w') as file:
+        json.dump(test_tfrecord_name_list, file)
+    print('tfrecord split.')
+
+
 def main():
     imgs_dir_path = '/home/wanglei/workshop/MSCoCo/train2017'
     captions_path = 'data/captions.json'
-    split_list_path = 'data/train_split.json'
+    train_split_list_path = 'data/image_id_train.json'
     vocabulary_path = 'data/vocabulary.json'
-    get_train_tfrecord(imgs_dir_path, captions_path, split_list_path, vocabulary_path)
+    # get_train_tfrecord(imgs_dir_path, captions_path, train_split_list_path, vocabulary_path)
 
+    val_split_list_path = 'data/image_id_val.json'
+    # get_train_tfrecord(imgs_dir_path, captions_path, val_split_list_path, vocabulary_path)
 
+    test_split_list_path = 'data/image_id_test.json'
+    # get_train_tfrecord(imgs_dir_path, captions_path, test_split_list_path, vocabulary_path)
+
+    get_tfrecord_split()
 # main()

@@ -57,7 +57,7 @@ You need to wait 30 mins to convert data to 'data/tfrecord/train-xx.tfrecord', I
 ## Result
 #### CNN+RNN
 |  | BLEU_1 | BLEU_2 | BLEU_3 | BLEU_4 | METEOR | ROUGE | CIDEr |
-| ------ | ------ | ------ | ------ | ------ | ------ | ------ | ------ |
+| :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
 | Train Dataset | 0.7051 | 0.5322 | 0.3832 | 0.2682 | 0.2283 | 0.5128 | 0.7968 |
 | Val Dataset | 0.6667 | 0.4866 | 0.3405 | 0.2337 | 0.2096 | 0.4831 | 0.7024 |
 | Test Dataset | 0.6687 | 0.4879 | 0.3421 | 0.2364 | 0.2096 | 0.4838 | 0.6972 |
@@ -81,3 +81,5 @@ The model is very very*N simple, I never adjust the hyperparameter, so if you wa
 - [Tensorflow Model released im2text](https://github.com/tensorflow/models/tree/master/research/im2txt)
 - [An Implementation in Tensorflow of Guoming Wang](https://github.com/DeepRNN/image_captioning)
 - [MS COCO Caption Evaluation Tookit](https://github.com/tylin/coco-caption)
+- Vinyals, Oriol, et al. "Show and tell: A neural image caption generator." Proceedings of the IEEE conference on computer vision and pattern recognition. 2015.
+- Xu, Kelvin, et al. "Show, attend and tell: Neural image caption generation with visual attention." International conference on machine learning. 2015.

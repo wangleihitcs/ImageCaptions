@@ -5,8 +5,7 @@ from pycocoevalcap.rouge.rouge import Rouge
 from pycocoevalcap.cider.cider import Cider
 import json
 
-def coco_caption_metrics(predictions_list, image_id_list, max_caption_length=25, batch_size=32, is_training=True):
-    vocabulary_path = 'data/vocabulary.json'
+def coco_caption_metrics(predictions_list, image_id_list, vocabulary_path='data/vocabulary.json', max_caption_length=25, batch_size=32, is_training=True):
     with open(vocabulary_path, 'r') as file:
         vocabulary_list = json.load(file)
     word2id = {}
