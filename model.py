@@ -2,7 +2,6 @@ import tensorflow as tf
 from utils import nn
 from nets import inception
 
-
 class Model(object):
     def __init__(self, is_training=True):
         self.batch_size = 32
@@ -13,7 +12,7 @@ class Model(object):
         self.initial_learning_rate = 1e-4
         self.image_size = 224
         self.decay_rate = 0.9
-        self.decay_epochs = 5 * (82783 / self.batch_size)
+        self.decay_epochs = 1 * (82783 / self.batch_size)
 
         self.max_caption_length = 25
         self.lstm_drop_rate = 0.3
@@ -21,7 +20,7 @@ class Model(object):
         self.is_training = is_training
 
         self.images = tf.placeholder(dtype=tf.float32, shape=[self.batch_size, self.image_size, self.image_size, 3])
-        self.sentences = tf.placeholder(dtype=tf.int32, shape=[self.batch_size, self.max_caption_length])
+        self.sentences = tf.placeholder(dtype=tf.int64, shape=[self.batch_size, self.max_caption_length])
         self.masks = tf.placeholder(dtype=tf.float32, shape=[self.batch_size, self.max_caption_length])
 
         self.build_cnn()
@@ -131,17 +130,17 @@ class Model(object):
         self.global_step = tf.Variable(0, name='global_step', trainable=False)
         learning_rate = tf.constant(self.initial_learning_rate)
 
-        # def _learning_rate_decay_fn(learning_rate, global_step):
-        #     return tf.train.exponential_decay(
-        #         learning_rate=learning_rate,
-        #         global_step=global_step,
-        #         decay_steps=self.decay_epochs,
-        #         decay_rate=self.decay_rate,
-        #         staircase=True
-        #     )
-        #
-        # learning_rate_decay_fn = _learning_rate_decay_fn
-        learning_rate_decay_fn = None
+        def _learning_rate_decay_fn(learning_rate, global_step):
+            return tf.train.exponential_decay(
+                learning_rate=learning_rate,
+                global_step=global_step,
+                decay_steps=self.decay_epochs,
+                decay_rate=self.decay_rate,
+                staircase=True
+            )
+
+        learning_rate_decay_fn = _learning_rate_decay_fn
+        # learning_rate_decay_fn = None
 
         with tf.variable_scope('optimizer', reuse=tf.AUTO_REUSE):
             optimizer = tf.train.AdamOptimizer(

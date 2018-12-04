@@ -5,7 +5,8 @@ from pycocoevalcap.rouge.rouge import Rouge
 from pycocoevalcap.cider.cider import Cider
 import json
 
-def coco_caption_metrics(predictions_list, sentences_list, filename_list, vocabulary_path, max_caption_length=25, batch_size=32, is_training=True):
+def coco_caption_metrics(predictions_list, image_id_list, max_caption_length=25, batch_size=32, is_training=True):
+    vocabulary_path = 'data/vocabulary.json'
     with open(vocabulary_path, 'r') as file:
         vocabulary_list = json.load(file)
     word2id = {}
@@ -25,7 +26,6 @@ def coco_caption_metrics(predictions_list, sentences_list, filename_list, vocabu
                 id_input = int(predictions_list[i][k][j])
                 sen_input.append(id2word[id_input])
 
-
             sen_pre = []
             for n in range(max_caption_length):
                 word = sen_input[n]
@@ -35,9 +35,11 @@ def coco_caption_metrics(predictions_list, sentences_list, filename_list, vocabu
                     break
 
             str_input = ' '.join(sen_pre)
-            filename = filename_list[(i * batch_size) + j]
-            res[filename] = [str_input]
-            gts[filename] = captions_gt_dict[filename]
+            image_id = image_id_list[i][j][0]
+
+            # print(image_id)
+            res[image_id] = [str_input]
+            gts[image_id] = captions_gt_dict[str(image_id)]
 
     if not is_training:
         # for key in gts.keys():
@@ -69,6 +71,7 @@ def coco_caption_metrics(predictions_list, sentences_list, filename_list, vocabu
     for i in range(4):
         bleu[i] = round(bleu[i], 4)
     return bleu, round(meteor, 4), round(rouge, 4), round(cider, 4)
+
 
 # eval predictions and ground truth by coco captions metrics
 def eval(result_gts_path, result_res_path):
