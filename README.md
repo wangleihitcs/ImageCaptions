@@ -73,7 +73,7 @@ e.g. Show and Tell: A Neural Image Caption Generator, CVPR 2015([pdf](https://ar
 | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
 | Val Dataset | 0.6467 | 0.4615 | 0.3180 | 0.2177 | 0.2014 | 0.4684 | 0.6310 |
 | Test Dataset | 0.6482 | 0.4638 | 0.3210 | 0.2217 | 0.2013 | 0.4633 | 0.6245 |
-| Paper | 0.707 | 0.492 | 0.344 | 0.243 | 0/2390 | - | - |
+| Paper | 0.707 | 0.492 | 0.344 | 0.243 | 0.2390 | - | - |
 
 e.g. Show, Attend and Tell: Neural Image Caption Generation with Visual Attention, ICML([pdf](https://arxiv.org/pdf/1502.03044.pdf))
 ## Example
