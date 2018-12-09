@@ -12,7 +12,7 @@ class Model(object):
         self.initial_learning_rate = 1e-4
         self.image_size = 224
         self.decay_rate = 0.9
-        self.decay_epochs = 1 * (82783 / self.batch_size)
+        self.decay_epochs = 5 * (82783 / self.batch_size)
 
         self.max_caption_length = 25
         self.lstm_drop_rate = 0.3

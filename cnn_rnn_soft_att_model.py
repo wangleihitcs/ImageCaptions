@@ -5,16 +5,16 @@ from nets import vgg
 class Model(object):
     def __init__(self, is_training=True):
         self.batch_size = 32
-        self.vocabulary_size = 14643     # 14640 word + '<S>' '</S>' '<EOS>'
+        self.vocabulary_size = 14643     # 4698 word + '<S>' '</S>' '<EOS>'
 
         self.lstm_units = 512
         self.embedding_size = 512
         self.initial_learning_rate = 1e-4
         self.image_size = 224
         self.decay_rate = 0.9
-        self.decay_epochs = 1 * (82783 / self.batch_size)
+        self.decay_epochs = 5 * (82783 / self.batch_size)
 
-        self.max_caption_length = 25
+        self.max_caption_length = 20
         self.lstm_drop_rate = 0.3
         self.dropout_rate = 0.5
         self.is_training = is_training
@@ -61,9 +61,11 @@ class Model(object):
 
         # 2. initialize word lstm
         with tf.variable_scope("word_lstm_initialize"):
-            context = tf.reduce_mean(self.visual_feats, axis=1)
-            initial_memory = nn.dense(context, self.lstm_units, name='fc_a')
-            initial_output = nn.dense(context, self.lstm_units, name='fc_b')
+            context = tf.reduce_mean(self.visual_feats, axis = 1)
+            context_dropout = nn.dropout(context, self.dropout_rate, self.is_training, name='drop_c')
+            initial_memory = nn.dense(context_dropout, units=self.lstm_units, activation=None, name='fc_m')
+            initial_output = nn.dense(context_dropout, self.lstm_units, activation=None, name='fc_o')
+
         WordLSTM_last_state = initial_memory, initial_output
         WordLSTM_last_output = initial_output
         WordLSTM_last_word = tf.zeros([self.batch_size], tf.int32)  # tf.zeros() means the '<S>' token
@@ -71,6 +73,7 @@ class Model(object):
         predictions = []  # store predict word
         prediction_corrects = []  # store correct predict to compute accuracy
         cross_entropies = []  # store cross entropy loss
+        alphas = []
 
         # 3. generate word step by step
         for id in range(self.max_caption_length):
@@ -80,6 +83,10 @@ class Model(object):
             with tf.variable_scope("attend", reuse=tf.AUTO_REUSE):
                 alpha = self.attend(self.visual_feats, WordLSTM_last_output)
                 context = tf.reduce_sum(self.visual_feats * tf.expand_dims(alpha, axis=2), axis=1)
+                if self.is_training:
+                    titled_masks = tf.tile(tf.expand_dims(self.masks[:, id], axis=1), [1, 196])
+                    masked_alpha = alpha * titled_masks
+                    alphas.append(tf.reshape(masked_alpha, [-1]))
 
             with tf.variable_scope('WordLSTM'):
                 inputs = tf.concat([context, word_embedding], axis=1)
@@ -87,10 +94,11 @@ class Model(object):
 
             with tf.variable_scope('decode'):
                 expanded_output = tf.concat([context, word_embedding, WordLSTM_current_output], axis=1)
-                expanded_output = nn.dropout(expanded_output, self.dropout_rate, self.is_training, name='drop')
-                logits = nn.dense(expanded_output, units=self.vocabulary_size, activation=None, name='fc')
+                expanded_output_dropout = nn.dropout(expanded_output, self.dropout_rate, self.is_training, name='drop')
+                logits = nn.dense(expanded_output_dropout, units=self.vocabulary_size, activation=None, name='fc')
                 prediction = tf.argmax(logits, 1)
                 predictions.append(prediction)
+
             tf.get_variable_scope().reuse_variables()
 
             WordLSTM_last_state = WordLSTM_current_state
@@ -122,6 +130,7 @@ class Model(object):
 
         self.predictions = predictions
         self.cross_entropies = cross_entropies
+        self.alphas = alphas
         self.accuracy = accuracy
         print('rnn built.')
 
@@ -130,7 +139,17 @@ class Model(object):
         self.cross_entropy_text = tf.reduce_sum(cross_entropies) / tf.reduce_sum(self.masks)
 
         self.reg_loss = tf.losses.get_regularization_loss()
-        self.loss = self.cross_entropy_text + self.reg_loss
+
+        if self.is_training:
+            alphas = tf.stack(self.alphas, axis=1)
+            alphas = tf.reshape(alphas, [self.batch_size, 196, -1])
+            attentions = tf.reduce_sum(alphas, axis=2)
+            diffs = tf.ones_like(attentions) - attentions
+            self.attention_loss = 0.01 * tf.nn.l2_loss(diffs) / (self.batch_size * 196)
+            self.loss = self.cross_entropy_text + self.attention_loss + self.reg_loss
+
+        else:
+            self.loss = self.cross_entropies + self.reg_loss
 
         print('metrics built.')
 
@@ -171,6 +190,7 @@ class Model(object):
     def build_summary(self):
         with tf.name_scope("metrics"):
             tf.summary.scalar('cross entropy', self.cross_entropy_text)
+            tf.summary.scalar('attention loss', self.attention_loss)
             tf.summary.scalar('reg loss', self.reg_loss)
             tf.summary.scalar('acc', self.accuracy)
 
@@ -179,36 +199,26 @@ class Model(object):
 
     # contexts = [batch, 196, 512], output = [batch, 512]
     def attend(self, contexts, output):
-        # alpha_list = []
-        # contexts = nn.dropout(contexts, self.dropout_rate, self.is_training, name='drop_c')
-        # outputs = nn.dropout(outputs, self.dropout_rate, self.is_training, name='drop_o')
-        # for i in range(self.batch_size):
-        #     context = contexts[i]               # shape = [196, 512]
-        #     logits_context = nn.dense(context, units=196, activation=None, use_bias=False, name='fc_lc')     # shape = [196, 196]
-        #
-        #     output = tf.reshape(outputs[i], shape=[512, 1])
-        #     ones = tf.ones([1, 196], tf.float32)
-        #     logits_temp = tf.matmul(output, ones)       # shape = [512, 196]
-        #     logits_temp = tf.transpose(logits_temp)     # shape = [196, 512]
-        #     logits_output = nn.dense(logits_temp, units=196, activation=None, use_bias=False, name='fc_lo')   # shape = [196, 196]
-        #
-        #     logit_tanh = tf.tanh(logits_context + logits_output)
-        #     alpha = nn.dense(logit_tanh, units=1, activation=None, use_bias=False, name='fc_alpha')           # shape = [196, 1]
-        #     alpha = tf.reshape(alpha, shape=[196])
-        #     alpha_list.append(alpha)
-        #
-        # alpha_batch = tf.stack(alpha_list, axis=0)      # shape = [batch_size, 196]
-        # alpha_soft = tf.nn.softmax(alpha_batch)         # shape = [batch_size, 196]
-
-        reshaped_contexts = tf.reshape(contexts, [-1, 512])
-        reshaped_contexts = nn.dropout(reshaped_contexts, self.dropout_rate, self.is_training, name='drop_c')
+        alpha_list = []
+        contexts = nn.dropout(contexts, self.dropout_rate, self.is_training, name='drop_c')
         output = nn.dropout(output, self.dropout_rate, self.is_training, name='drop_o')
 
-        logits1 = nn.dense(reshaped_contexts, units=1, activation=None, use_bias=False, name='fc_1')
-        logits1 = tf.reshape(logits1, [-1, 196])
-        logits2 = nn.dense(output, units=196, activation=None, use_bias=False, name='fc_2')
-        logits = logits1 + logits2  # [batch_size, 196]
+        for i in range(self.batch_size):
+            context = contexts[i]           # shape = [196, 512]
+            logits_context = nn.dense(context, units=196, activation=None, use_bias=False, name='fc_lc')   # shape = [196, 196]
 
-        alpha = tf.nn.softmax(logits)
+            output_i = tf.reshape(output[i], shape=[512, 1])
+            ones = tf.ones([1, 196], tf.float32)
+            logits_temp = tf.matmul(output_i, ones)  # shape = [512, 196]
+            logits_temp = tf.transpose(logits_temp)  # shape = [196, 512]
+            logits_output = nn.dense(logits_temp, units=196, activation=None, use_bias=False, name='fc_lo')  # shape = [196, 196]
+
+            logit_tanh = tf.tanh(logits_context + logits_output)
+            alpha = nn.dense(logit_tanh, units=1, activation=None, use_bias=False, name='fc_alpha')          # shape = [196, 1]
+            alpha = tf.reshape(alpha, shape=[196])
+            alpha_list.append(alpha)
+
+        alpha_batch = tf.stack(alpha_list, axis=0)  # shape = [batch_size, 196]
+        alpha = tf.nn.softmax(alpha_batch)  # shape = [batch_size, 196]
 
         return alpha

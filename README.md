@@ -1,5 +1,5 @@
 ### ImageCaptions
-a base model for image captioning
+A base model for image captioning
 
 ### Config
 - python 2.7
@@ -9,6 +9,8 @@ a base model for image captioning
     * PIL
     * json
     * numpy
+
+It is all of common tookits, so I don't give their links.
 
 ### DataDownload
 - coco image dataset
@@ -54,7 +56,8 @@ You need to wait 30 mins to convert data to 'data/tfrecord/train-xx.tfrecord', I
     $ python main.py    
 ```
 
-## Result
+## Experiments
+Train/Val/Test Dataset, 82783/5000/5000, vocabulary size = 14643 and we not filter out word. We use greedy search not beam search.
 #### CNN+RNN
 |  | BLEU_1 | BLEU_2 | BLEU_3 | BLEU_4 | METEOR | ROUGE | CIDEr |
 | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
@@ -66,13 +69,15 @@ You need to wait 30 mins to convert data to 'data/tfrecord/train-xx.tfrecord', I
 e.g. Show and Tell: A Neural Image Caption Generator, CVPR 2015([pdf](https://arxiv.org/pdf/1411.4555.pdf))
 
 #### CNN+RNN+Soft-Attention
+|  | BLEU_1 | BLEU_2 | BLEU_3 | BLEU_4 | METEOR | ROUGE | CIDEr |
+| :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| Val Dataset | 0.6467 | 0.4615 | 0.3180 | 0.2177 | 0.2014 | 0.4684 | 0.6310 |
+| Test Dataset | 0.6482 | 0.4638 | 0.3210 | 0.2217 | 0.2013 | 0.4633 | 0.6245 |
+| Paper | 0.707 | 0.492 | 0.344 | 0.243 | 0/2390 | - | - |
 
-
+e.g. Show, Attend and Tell: Neural Image Caption Generation with Visual Attention, ICML([pdf](https://arxiv.org/pdf/1502.03044.pdf))
 ## Example
-#### CNN+RNN
 ![examples](data/examples/example1.png)
-
-### CNN+RNN+Soft-Attention
 
 ## Summary
 The model is very very*N simple, I never adjust the hyperparameter, so if you want, you could do.
