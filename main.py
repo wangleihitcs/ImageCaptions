@@ -6,7 +6,7 @@ import termcolor as tc
 
 import datasets
 import metrics
-from model import Model
+from cnn_rnn_model import Model
 
 imgs_path = '/home/wanglei/workshop/MSCoCo/train2017'
 captions_path = 'data/captions.json'
@@ -18,7 +18,7 @@ val_tfrecord_name_path = 'data/tfrecord_name_val.json'
 test_tfrecord_name_path = 'data/tfrecord_name_test.json'
 vocabulary_path = 'data/vocabulary.json'
 
-pretrain_inception_v3_ckpt_path = '/home/wanglei/workshop/b_pre_train_model/inception/inception_v3.ckpt'
+pretrain_inception_v3_ckpt_path = 'data/inception/inception_v3.ckpt'
 
 summary_path = 'data/summary'                       # data/summary to save events tf.summary
 model_path_save = 'data/model/my-test'              # data/model to save my-test-xxx.ckpt
@@ -34,8 +34,8 @@ def train():
 
     print('---Read Data...')
     image_batch, sentence_batch, mask_batch, image_id_batch = datasets.get_train_batch(train_tfrecord_name_path, md.batch_size)
-    image_list_v, sentence_list_v, mask_list_v, image_id_list_v = datasets.get_inputs(imgs_path, captions_path, val_split_path, vocabulary_path)
-    image_list_t, sentence_list_t, mask_list_t, image_id_list_t = datasets.get_inputs(imgs_path, captions_path, test_split_path, vocabulary_path)
+    # image_list_v, sentence_list_v, mask_list_v, image_id_list_v = datasets.get_inputs(imgs_path, captions_path, val_split_path, vocabulary_path)
+    # image_list_t, sentence_list_t, mask_list_t, image_id_list_t = datasets.get_inputs(imgs_path, captions_path, test_split_path, vocabulary_path)
 
     print('---Training Model...')
     init_fn = slim.assign_from_checkpoint_fn(pretrain_inception_v3_ckpt_path, slim.get_model_variables('InceptionV3'))  # 'InceptionV3'
@@ -79,22 +79,22 @@ def train():
                           (epoch, iter, np.mean(loss_list), np.mean(acc_list), bleu, meteor, rouge, cider))
 
                     # val model
-                    loss_list, acc_list, predictions_list, image_id_list = eval(sess, md_val, image_list_v, sentence_list_v, mask_list_v, image_id_list_v)
-                    bleu, meteor, rouge, cider = metrics.coco_caption_metrics(predictions_list, image_id_list, batch_size=md_val.batch_size)
-                    loss_val = round(np.mean(loss_list), 4)
-                    acc_val = round(np.mean(acc_list), 4)
-                    print('------epoch = %s, iter = %s, loss = %s, acc = %s, bleu = %s, meteor = %s, rouge = %s, cider = %s' %
-                                (epoch, iter, tc.colored(loss_val, 'red'), tc.colored(acc_val, 'red'), tc.colored(bleu, 'red'),
-                                 tc.colored(meteor, 'red'), tc.colored(rouge, 'red'), tc.colored(cider, 'red')))
+                    # loss_list, acc_list, predictions_list, image_id_list = eval(sess, md_val, image_list_v, sentence_list_v, mask_list_v, image_id_list_v)
+                    # bleu, meteor, rouge, cider = metrics.coco_caption_metrics(predictions_list, image_id_list, batch_size=md_val.batch_size)
+                    # loss_val = round(np.mean(loss_list), 4)
+                    # acc_val = round(np.mean(acc_list), 4)
+                    # print('------epoch = %s, iter = %s, loss = %s, acc = %s, bleu = %s, meteor = %s, rouge = %s, cider = %s' %
+                    #             (epoch, iter, tc.colored(loss_val, 'red'), tc.colored(acc_val, 'red'), tc.colored(bleu, 'red'),
+                    #              tc.colored(meteor, 'red'), tc.colored(rouge, 'red'), tc.colored(cider, 'red')))
 
-                    # test model
-                    loss_list, acc_list, predictions_list, image_id_list = eval(sess, md_test, image_list_t, sentence_list_t, mask_list_t, image_id_list_t)
-                    bleu, meteor, rouge, cider = metrics.coco_caption_metrics(predictions_list, image_id_list, batch_size=md_test.batch_size)
-                    loss_test = round(np.mean(loss_list), 4)
-                    acc_test = round(np.mean(acc_list), 4)
-                    print('------epoch = %s, iter = %s, loss = %s, acc = %s, bleu = %s, meteor = %s, rouge = %s, cider = %s' %
-                          (epoch, iter, tc.colored(loss_test, 'blue'), tc.colored(acc_test, 'blue'), tc.colored(bleu, 'blue'),
-                           tc.colored(meteor, 'blue'), tc.colored(rouge, 'blue'), tc.colored(cider, 'blue')))
+                    # # test model
+                    # loss_list, acc_list, predictions_list, image_id_list = eval(sess, md_test, image_list_t, sentence_list_t, mask_list_t, image_id_list_t)
+                    # bleu, meteor, rouge, cider = metrics.coco_caption_metrics(predictions_list, image_id_list, batch_size=md_test.batch_size)
+                    # loss_test = round(np.mean(loss_list), 4)
+                    # acc_test = round(np.mean(acc_list), 4)
+                    # print('------epoch = %s, iter = %s, loss = %s, acc = %s, bleu = %s, meteor = %s, rouge = %s, cider = %s' %
+                    #       (epoch, iter, tc.colored(loss_test, 'blue'), tc.colored(acc_test, 'blue'), tc.colored(bleu, 'blue'),
+                    #        tc.colored(meteor, 'blue'), tc.colored(rouge, 'blue'), tc.colored(cider, 'blue')))
 
                     loss_list = []
                     acc_list = []
@@ -171,10 +171,10 @@ def test(tfrecord_list_path, data_nums, model_path):
         coord.request_stop()
         coord.join(threads)
 
-# train()
+train()
 
 model_path = 'data/model/my-test-10000'
-test(train_tfrecord_name_path, train_num, model_path)
+# test(train_tfrecord_name_path, train_num, model_path)
 # test(val_tfrecord_name_path, val_num, model_path)
 # test(test_tfrecord_name_path, test_num, model_path)
 
