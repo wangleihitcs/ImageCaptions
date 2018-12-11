@@ -8,7 +8,7 @@ import datasets
 import metrics
 from cnn_rnn_model import Model
 
-imgs_path = '/home/wanglei/workshop/MSCoCo/train2017'
+imgs_path = 'data/train2017'
 captions_path = 'data/captions.json'
 val_split_path = 'data/image_id_val.json'              # val size = 5000
 test_split_path = 'data/image_id_test.json'            # test size = 5000
@@ -29,8 +29,8 @@ test_num = 5000
 
 def train():
     md = Model(is_training=True)            # Train model
-    md_val = Model(is_training=True)        # Val model
-    md_test = Model(is_training=False)      # Test model
+    # md_val = Model(is_training=True)        # Val model
+    # md_test = Model(is_training=False)      # Test model
 
     print('---Read Data...')
     image_batch, sentence_batch, mask_batch, image_id_batch = datasets.get_train_batch(train_tfrecord_name_path, md.batch_size)
