@@ -30,11 +30,11 @@ def get_train_batch(tfrecord_list_path, batch_size, image_size=224, max_caption_
     image_id = features['image_id']
 
     # 3. get tf.tfrecord.batch
-    min_after_dequeue = 10000
-    image_batch, sentece_batch, mask_batch, image_id_batch = tf.train.batch(
+    image_batch, sentece_batch, mask_batch, image_id_batch = tf.train.shuffle_batch(
         [image, sentence, mask, image_id],
         batch_size=batch_size,
-        capacity=min_after_dequeue + 3*batch_size
+        capacity=15,
+        min_after_dequeue = 10
     )
 
     return image_batch, sentece_batch, mask_batch, image_id_batch
